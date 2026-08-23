@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+web/node_modules/
+web/dist/
+.DS_Store
+
+# Local test documents -- never commit real PDFs
+*.pdf
+!docs/*.pdf
+
+# Local review artefact: contains the contents of a personal document
+compare_page1.png
