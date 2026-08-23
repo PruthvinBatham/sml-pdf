@@ -74,7 +74,8 @@ QUAL       50dpi q90         ███                 402.8 KB  OVER
 
 | Panel | What's in it |
 |:--|:--|
-| **result** | before → after, budget consumed, engine, setting, DPI requested → actual, quality, probe count, elapsed |
+| **result** | before → after, compression percentage and ratio, bytes saved, budget consumed, engine, setting, DPI requested → actual, quality, probe count, elapsed |
+| **fidelity** | what survived intact — text layer, vector art, page geometry, image data, metadata — each with a verdict of `identical` / `re-encoded` / `lost` |
 | **document** | file size, pages, PDF version, image payload and its share of the file, image count, max/min DPI, text characters, embedded fonts, xref objects, producer — all before → after |
 | **images** | every embedded image: pixel dimensions, effective DPI, format, colorspace, stored bytes → after, plus per-image delta |
 | **pages** | per page: size in points *and* millimetres, rotation, text characters, image count, vector operations, image bytes before → after |
@@ -82,6 +83,25 @@ QUAL       50dpi q90         ███                 402.8 KB  OVER
 
 Colour is load-bearing: sand is always a *before* value, mint is always *after*, peach
 means over budget.
+
+### Lossless claims you can check
+
+"Lossless" is usually a marketing word. Here it is a measurement. Text runs and image
+streams are compared by **SHA-1 of their actual bytes**, before and after — an identical
+character count would not prove text is unchanged, but an identical digest does.
+
+```
+text layer      12,470 chars · sha1 793e3f0f2bcf unchanged        IDENTICAL
+vector art      12 -> 12 draw ops                                 IDENTICAL
+page geometry   6 pages, every page size unchanged                 IDENTICAL
+image data      6 images · sha1 f90884179fee -> 46ce6bf9db12      RE-ENCODED
+```
+
+So on a typical document the honest claim is precise: *only the image streams were
+re-encoded; text, vector art and page geometry came through byte-for-byte identical.*
+When the lossless pass alone meets your target, the image digest matches too and nothing
+was re-encoded at all. When the raster engine has to be used, text is reported as `LOST` —
+because it is. Anything the tool cannot prove, it does not assert.
 
 ## Run it
 

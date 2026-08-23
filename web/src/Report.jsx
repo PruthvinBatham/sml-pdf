@@ -30,6 +30,86 @@ function BudgetBar({ used, target, size }) {
   );
 }
 
+/* Fidelity: what survived, and how we know. Text and image payloads are compared by
+   SHA-1 of their real bytes, so "identical" is a checkable claim rather than a vibe. */
+const STATE_LABEL = {
+  identical: 'identical',
+  reencoded: 're-encoded',
+  changed: 'changed',
+  lost: 'lost',
+  stripped: 'stripped',
+  none: 'n/a',
+};
+
+function Fidelity({ f, engine }) {
+  const rows = [];
+
+  if (f.text.present) {
+    rows.push({
+      label: 'text layer',
+      detail: f.text.identical
+        ? `${int(f.text.before)} chars · sha1 ${f.text.sha_before} unchanged`
+        : `${int(f.text.before)} → ${int(f.text.after)} chars`,
+      state: f.text.identical ? 'identical' : f.text.after === 0 ? 'lost' : 'changed',
+    });
+  } else {
+    rows.push({ label: 'text layer', detail: 'none in source — pure scan', state: 'none' });
+  }
+
+  if (f.vectors.present) {
+    rows.push({
+      label: 'vector art',
+      detail: `${int(f.vectors.before)} → ${int(f.vectors.after)} draw ops`,
+      state: f.vectors.identical ? 'identical' : f.vectors.after === 0 ? 'lost' : 'changed',
+    });
+  }
+
+  rows.push({
+    label: 'page geometry',
+    detail: `${f.geometry.pages_before} pages, ${
+      f.geometry.identical ? 'every page size unchanged' : 'page sizes changed'
+    }`,
+    state: f.geometry.identical ? 'identical' : 'changed',
+  });
+
+  if (f.images.present) {
+    rows.push({
+      label: 'image data',
+      detail: f.images.identical
+        ? `${f.images.count_before} images · sha1 ${f.images.sha_before} unchanged`
+        : `${f.images.count_before} images · sha1 ${f.images.sha_before} → ${f.images.sha_after}`,
+      state: f.images.identical ? 'identical' : 'reencoded',
+    });
+  }
+
+  if (f.metadata_stripped) {
+    rows.push({ label: 'metadata', detail: 'producer and XMP removed', state: 'stripped' });
+  }
+
+  const verdict = f.lossless
+    ? 'Nothing was re-encoded. Every image stream, text run and vector path is byte-for-byte identical — the savings came from structure alone.'
+    : engine === 'raster'
+      ? 'Every page was flattened to a single image. Text and vector art are gone; this file is now pictures of pages.'
+      : f.text.identical && f.vectors.identical && f.geometry.identical
+        ? 'Only the image streams were re-encoded. Text, vector art and page geometry came through byte-for-byte identical.'
+        : 'Image streams were re-encoded; see the rows above for what else changed.';
+
+  return (
+    <Section title="fidelity" note="verified by sha-1 of the actual bytes">
+      <div className="rows fid">
+        {rows.map(r => (
+          <div className="fidrow" key={r.label}>
+            <span className="k">{r.label}</span>
+            <span className="detail">{r.detail}</span>
+            <span className={`state ${r.state}`}>{STATE_LABEL[r.state] || r.state}</span>
+          </div>
+        ))}
+      </div>
+      <p className="hintline">{verdict}</p>
+    </Section>
+  );
+}
+
 function Section({ title, note, children }) {
   return (
     <section className="panel">
@@ -58,9 +138,20 @@ export default function Report({ r }) {
             <span className="now">{bytes(r.result_size)}</span>
           </div>
           <span className="badge">{r.saved_pct}% smaller</span>
+          <span className="badge ratio">{r.ratio}:1</span>
         </div>
         <BudgetBar used={r.budget_used_pct} target={r.target} size={r.result_size} />
         <div className="kv">
+          <div>
+            <dt>compression</dt>
+            <dd className="mintv">
+              {r.saved_pct}% · {r.ratio}:1
+            </dd>
+          </div>
+          <div>
+            <dt>bytes saved</dt>
+            <dd>{bytes(r.saved_bytes)}</dd>
+          </div>
           <div>
             <dt>engine</dt>
             <dd>{r.engine}</dd>
@@ -108,6 +199,8 @@ export default function Report({ r }) {
           </p>
         )}
       </Section>
+
+      {r.fidelity && <Fidelity f={r.fidelity} engine={r.engine} />}
 
       <Section title="document" note="before → after">
         <div className="rows">

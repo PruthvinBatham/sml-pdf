@@ -454,6 +454,55 @@ button:not(:disabled):hover,
   font-size: 11px;
 }
 
+.badge.ratio {
+  margin-left: 0;
+  border-color: rgba(217, 176, 140, 0.35);
+  color: var(--sand);
+}
+
+.kv dd.mintv {
+  color: var(--mint);
+}
+
+/* fidelity rows: claim, evidence, verdict chip */
+
+.fidrow {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fidrow .k {
+  color: var(--ice);
+  font-size: 12px;
+}
+
+.fidrow .detail {
+  color: var(--dim);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.state {
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.state.identical { color: var(--mint); }
+.state.reencoded { color: var(--sand); }
+.state.changed { color: var(--sand); }
+.state.lost { color: var(--peach); }
+.state.stripped { color: var(--ice); }
+.state.none { color: rgba(166, 207, 213, 0.4); }
+
 /* budget bar */
 
 .budget {

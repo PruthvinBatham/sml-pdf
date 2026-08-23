@@ -35,6 +35,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import re
@@ -131,8 +132,11 @@ def analyze(data: bytes) -> dict:
         }
 
         fonts: set[str] = set()
+        text_digest = hashlib.sha1()
+        image_digest = hashlib.sha1()
         for pno, page in enumerate(doc):
             text = page.get_text().strip()
+            text_digest.update(text.encode("utf-8", "replace"))
             entries = page.get_images(full=True)
             drawings = 0
             try:
@@ -152,9 +156,12 @@ def analyze(data: bytes) -> dict:
                 dpi_x = round(w / (placed.width / 72)) if placed and placed.width else None
                 dpi_y = round(h / (placed.height / 72)) if placed and placed.height else None
 
-                stored = None
+                stored, stream_sha = None, None
                 try:
-                    stored = len(doc.xref_stream_raw(xref))
+                    raw = doc.xref_stream_raw(xref)
+                    stored = len(raw)
+                    stream_sha = hashlib.sha1(raw).hexdigest()
+                    image_digest.update(raw)
                 except Exception:
                     pass
                 ext, cs_name, comps = None, None, None
@@ -183,12 +190,14 @@ def analyze(data: bytes) -> dict:
                     "format": ext or (str(filt).lstrip("/") if filt else ""),
                     "filter": str(filt).lstrip("/") if filt else "",
                     "bytes": stored,
+                    "sha1": (stream_sha or "")[:12],
                     "has_alpha": bool(smask),
                 })
 
             r = page.rect
             out["pages"].append({
                 "page": pno + 1,
+                "text_sha1": hashlib.sha1(text.encode("utf-8", "replace")).hexdigest()[:12],
                 "width_pt": round(r.width, 1),
                 "height_pt": round(r.height, 1),
                 "width_mm": round(r.width * 25.4 / 72, 1),
@@ -202,6 +211,10 @@ def analyze(data: bytes) -> dict:
             out["doc"]["image_bytes"] += page_img_bytes
 
         out["doc"]["embedded_fonts"] = len(fonts)
+        out["doc"]["text_sha1"] = text_digest.hexdigest()[:12]
+        out["doc"]["image_sha1"] = image_digest.hexdigest()[:12]
+        out["doc"]["geometry"] = [(p["width_pt"], p["height_pt"]) for p in out["pages"]]
+        out["doc"]["vector_ops"] = sum(p["vector_ops"] for p in out["pages"])
         out["doc"]["font_names"] = sorted(fonts)[:12]
         total = out["doc"]["image_bytes"]
         out["doc"]["image_share_pct"] = round(100 * total / len(data), 1) if data else 0.0
@@ -357,6 +370,57 @@ class Result:
         return 100 * self.size / self.target if self.target else 0.0
 
     @property
+    def ratio(self) -> float:
+        """Compression ratio, e.g. 8.28 means 8.28:1."""
+        return self.original_size / self.size if self.size else 0.0
+
+    def fidelity(self) -> dict:
+        """What survived intact, stated so each claim can be checked.
+
+        Text and image payloads are compared by SHA-1 of their actual bytes, not by
+        counting them -- an equal character count would not prove the text is unchanged,
+        but an equal digest does. Anything this can't prove, it reports as unknown rather
+        than asserting.
+        """
+        b, a = self.before.get("doc", {}), self.after.get("doc", {})
+        text_present = bool(b.get("text_chars"))
+        vec_present = bool(b.get("vector_ops"))
+        return {
+            "text": {
+                "present": text_present,
+                "identical": text_present and b.get("text_sha1") == a.get("text_sha1"),
+                "before": b.get("text_chars", 0),
+                "after": a.get("text_chars", 0),
+                "sha_before": b.get("text_sha1", ""),
+                "sha_after": a.get("text_sha1", ""),
+            },
+            "images": {
+                "present": bool(self.before.get("images")),
+                "identical": bool(self.before.get("images"))
+                and b.get("image_sha1") == a.get("image_sha1"),
+                "count_before": len(self.before.get("images", [])),
+                "count_after": len(self.after.get("images", [])),
+                "sha_before": b.get("image_sha1", ""),
+                "sha_after": a.get("image_sha1", ""),
+            },
+            "vectors": {
+                "present": vec_present,
+                "identical": b.get("vector_ops") == a.get("vector_ops"),
+                "before": b.get("vector_ops", 0),
+                "after": a.get("vector_ops", 0),
+            },
+            "geometry": {
+                "identical": b.get("geometry") == a.get("geometry"),
+                "pages_before": b.get("page_count", 0),
+                "pages_after": a.get("page_count", 0),
+            },
+            "metadata_stripped": bool(b.get("producer") or b.get("creator")) and not (
+                a.get("producer") or a.get("creator")
+            ),
+            "lossless": self.engine == "lossless",
+        }
+
+    @property
     def pages(self) -> int:
         return self.before.get("doc", {}).get("page_count", 0)
 
@@ -375,6 +439,9 @@ class Result:
             "original_size": self.original_size,
             "result_size": self.size,
             "saved_pct": round(self.saved_pct, 1),
+            "saved_bytes": self.original_size - self.size,
+            "ratio": round(self.ratio, 2),
+            "fidelity": self.fidelity(),
             "budget_used_pct": round(self.accuracy_pct, 1),
             "headroom": self.target - self.size,
             "engine": self.engine,
@@ -487,13 +554,48 @@ def print_stats(r: Result) -> None:
                   f"{human(im['bytes']):>10}   {a_px:>13} {str(a_dpi):>5} {a_fmt:>6} "
                   f"{a_bytes:>10}  {delta:>8}")
 
+    f = r.fidelity()
+    print("\n  fidelity  (verified by sha-1 of the actual bytes)")
+    claims = []
+    if f["text"]["present"]:
+        claims.append(("text layer",
+                       f'{f["text"]["before"]:,} chars · sha1 {f["text"]["sha_before"]}'
+                       + (" unchanged" if f["text"]["identical"]
+                          else f' -> {f["text"]["sha_after"]}'),
+                       "IDENTICAL" if f["text"]["identical"]
+                       else "LOST" if not f["text"]["after"] else "CHANGED"))
+    else:
+        claims.append(("text layer", "none in source — pure scan", "N/A"))
+    if f["vectors"]["present"]:
+        claims.append(("vector art",
+                       f'{f["vectors"]["before"]:,} -> {f["vectors"]["after"]:,} draw ops',
+                       "IDENTICAL" if f["vectors"]["identical"]
+                       else "LOST" if not f["vectors"]["after"] else "CHANGED"))
+    claims.append(("page geometry",
+                   f'{f["geometry"]["pages_before"]} pages, '
+                   + ("every page size unchanged" if f["geometry"]["identical"]
+                      else "page sizes changed"),
+                   "IDENTICAL" if f["geometry"]["identical"] else "CHANGED"))
+    if f["images"]["present"]:
+        claims.append(("image data",
+                       f'{f["images"]["count_before"]} images · sha1 {f["images"]["sha_before"]}'
+                       + (" unchanged" if f["images"]["identical"]
+                          else f' -> {f["images"]["sha_after"]}'),
+                       "IDENTICAL" if f["images"]["identical"] else "RE-ENCODED"))
+    if f["metadata_stripped"]:
+        claims.append(("metadata", "producer and XMP removed", "STRIPPED"))
+    for label, detail, state in claims:
+        print(f"    {label:<15}{detail:<58}{state:>11}")
+
     print(f"\n  search path ({len(r.trace)} probes, {r.elapsed_ms} ms total)")
     for t in r.trace:
         label = ("lossless" if t["phase"] == "lossless"
                  else f"{t['phase']} {t['dpi']}dpi q{t['quality']}{' gray' if t['gray'] else ''}")
         print(f"    {label:<28} {human(t['bytes']):>10}  "
               f"{'fits' if t['fits'] else 'too big':<8} {t['ms']:>5} ms")
-    print(f"\n  budget: {human(r.size)} of {human(r.target)} "
+    print(f"\n  compression: {r.saved_pct:.1f}% smaller, {r.ratio:.2f}:1, "
+          f"{human(r.original_size - r.size)} saved")
+    print(f"  budget: {human(r.size)} of {human(r.target)} "
           f"({r.accuracy_pct:.1f}% used, {human(r.target - r.size)} spare)")
 
 
