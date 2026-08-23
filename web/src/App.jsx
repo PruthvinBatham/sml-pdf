@@ -56,6 +56,9 @@ export default function App() {
 
       <div
         className={`drop ${dragging ? 'over' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-label={file ? `Selected ${file.name}. Choose a different PDF` : 'Choose a PDF to compress'}
         onDragOver={e => {
           e.preventDefault();
           setDragging(true);
@@ -67,14 +70,21 @@ export default function App() {
           pick(e.dataTransfer.files?.[0]);
         }}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
       >
         <span className="bracket tl" />
         <span className="bracket tr" />
         <span className="bracket bl" />
         <span className="bracket br" />
         <div className={`stage ${dragging || file ? 'open' : 'closed'}`}>
-          <Folder size={1.15} color="#26408B" open={dragging || !!file} />
+          <Folder size={1.05} color="#49658F" open={dragging || !!file} />
         </div>
+        <span className="drop-label">{file ? 'Ready to compress' : 'Choose your document'}</span>
         <p className="hint">
           {file ? (
             <>
@@ -82,10 +92,10 @@ export default function App() {
               <span className="dim"> · {bytes(file.size)}</span>
             </>
           ) : (
-            'drop a pdf here, or click to browse'
+            'Drop a PDF here or browse files'
           )}
         </p>
-        <p className="spec">pdf only · up to 300 mb · processed on this machine</p>
+        <p className="spec">PDF only <i /> Up to 300 MB <i /> Never leaves this device</p>
         <input
           ref={inputRef}
           type="file"
@@ -95,28 +105,26 @@ export default function App() {
         />
       </div>
 
-      <div className="controls">
-        <label htmlFor="amount">target</label>
-        <input
-          id="amount"
-          type="number"
-          min="0.05"
-          step="0.05"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-        />
-        <select value={unit} onChange={e => setUnit(e.target.value)} aria-label="Unit">
-          <option>MB</option>
-          <option>KB</option>
-        </select>
-        <label htmlFor="engine">engine</label>
-        <select id="engine" value={mode} onChange={e => setMode(e.target.value)}>
-          <option value="auto">auto</option>
-          <option value="images">images only</option>
-          <option value="raster">raster only</option>
-        </select>
+      <div className="controls" aria-label="Compression settings">
+        <div className="control-group target-control">
+          <label htmlFor="amount">Target size</label>
+          <div className="joined-control">
+            <input id="amount" type="number" min="0.05" step="0.05" value={amount} onChange={e => setAmount(e.target.value)} />
+            <select value={unit} onChange={e => setUnit(e.target.value)} aria-label="Unit">
+              <option>MB</option><option>KB</option>
+            </select>
+          </div>
+        </div>
+        <div className="control-group engine-control">
+          <label htmlFor="engine">Compression</label>
+          <select id="engine" value={mode} onChange={e => setMode(e.target.value)}>
+            <option value="auto">Automatic</option>
+            <option value="images">Images only</option>
+            <option value="raster">Raster only</option>
+          </select>
+        </div>
         <button onClick={compress} disabled={!file || busy}>
-          {busy ? 'compressing…' : 'compress'}
+          {busy ? 'Compressing…' : 'Compress PDF'}
         </button>
       </div>
 

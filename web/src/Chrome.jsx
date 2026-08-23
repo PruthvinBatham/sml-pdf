@@ -6,30 +6,30 @@
    off when you read the numbers below. */
 
 const LEGEND = [
-  { c: 'var(--sand)', label: 'before' },
-  { c: 'var(--mint)', label: 'after' },
-  { c: 'var(--fog)', label: 'target' },
-  { c: 'var(--peach)', label: 'over budget' },
+  { c: 'var(--before)', label: 'before' },
+  { c: 'var(--after)', label: 'after' },
+  { c: 'var(--accent)', label: 'target' },
+  { c: 'var(--warning)', label: 'over budget' },
 ];
 
 const PHASES = [
-  { n: '00', name: 'lossless', desc: 'strip metadata, subset fonts, rebuild xref', tone: 'slate' },
-  { n: '01', name: 'resolution', desc: 'bisect the dpi ladder at probe quality', tone: 'teal' },
-  { n: '02', name: 'quality', desc: 'raise jpeg quality until the budget is full', tone: 'mint' },
+  { n: '01', name: 'Clean', desc: 'Remove redundant document data', tone: 'slate' },
+  { n: '02', name: 'Balance', desc: 'Find the ideal image resolution', tone: 'teal' },
+  { n: '03', name: 'Refine', desc: 'Maximise quality within your target', tone: 'mint' },
 ];
 
 export function Masthead() {
   return (
     <header className="masthead">
       <div className="brand">
-        <span className="mark">sml</span>
-        <span className="slash">/</span>
-        <h1>pdf compress</h1>
-        <span className="ver">local</span>
+        <span className="mark" aria-hidden="true">S</span>
+        <h1>Small PDF</h1>
+        <span className="ver"><i /> Local</span>
       </div>
+      <p className="eyebrow">Private document compression</p>
+      <h2 className="hero-title">Precisely smaller.<br />Beautifully simple.</h2>
       <p className="sub">
-        Name a file size. Get that file size — with the sharpest image settings that fit
-        inside it, and a full structural read-out of what changed.
+        Set the size you need. We find the sharpest result that fits—entirely on your machine.
       </p>
       <div className="legend">
         {LEGEND.map(l => (

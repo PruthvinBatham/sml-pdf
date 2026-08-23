@@ -1,17 +1,30 @@
 <div align="center">
 
-# sml / pdf compress
+# Small PDF
 
-**Name a file size. Get that file size.**
+**Precisely smaller. Beautifully simple.**
 
 Target-size PDF compression that spends your byte budget instead of wasting it —
-with a full structural read-out of everything it changed.
+with the sharpest image settings that fit and a full structural read-out of every change.
 
-macOS · Windows · Linux · runs entirely on your machine
+`macOS` · `Windows` · `Linux` · `Private by design` · `No upload required`
 
 </div>
 
-![The compressor UI](docs/ui-idle.png)
+![Small PDF — private target-size compression](docs/ui-idle.png)
+
+## Why Small PDF
+
+- **Target the size you actually need.** Enter `1 MB`, `900 KB`, or any exact budget.
+- **Keep the best quality that fits.** Two-phase bisection searches resolution first, then spends the remaining budget on JPEG quality.
+- **See what changed.** The report shows document structure, image payloads, per-page data, fidelity checks, and every compression probe.
+- **Keep documents private.** Processing happens locally on your machine; the browser UI never sends a PDF to a third-party service.
+
+## The app
+
+Choose a document, set the target size, and let the automatic engine find the best result.
+
+![Small PDF compression report](docs/ui-report.png)
 
 ---
 
@@ -69,8 +82,6 @@ QUAL       50dpi q90         ███                 402.8 KB  OVER
 ```
 
 ## Everything it tells you
-
-![The full report](docs/ui-report.png)
 
 | Panel | What's in it |
 |:--|:--|

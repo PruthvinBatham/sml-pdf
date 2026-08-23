@@ -101,10 +101,11 @@ const Folder = ({
             handleClick();
           }
         }}
-        tabIndex={0}
-        role="button"
-        aria-expanded={open}
-        aria-label={open ? 'Close folder' : 'Open folder'}
+        tabIndex={controlled ? -1 : 0}
+        role={controlled ? undefined : 'button'}
+        aria-hidden={controlled ? true : undefined}
+        aria-expanded={controlled ? undefined : open}
+        aria-label={controlled ? undefined : open ? 'Close folder' : 'Open folder'}
       >
         <div className="folder__back">
           {papers.map((item, i) => (

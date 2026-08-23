@@ -7,6 +7,7 @@
 }
 
 .folder {
+  filter: drop-shadow(0 15px 14px rgba(34, 44, 60, 0.13));
   transition: all 0.2s ease-in;
   cursor: pointer;
 }
@@ -70,7 +71,7 @@
   width: 100px;
   height: 80px;
   background: var(--folder-back-color);
-  border-radius: 0px 10px 10px 10px;
+  border-radius: 0px 14px 14px 14px;
 }
 
 .folder__back::after {
@@ -94,7 +95,8 @@
   width: 70%;
   height: 80%;
   background: var(--paper-1);
-  border-radius: 10px;
+  border-radius: 7px;
+  box-shadow: 0 3px 12px rgba(34, 44, 60, 0.08);
   transition: all 0.3s ease-in-out;
 }
 
@@ -116,7 +118,7 @@
   width: 100%;
   height: 100%;
   background: var(--folder-color);
-  border-radius: 5px 10px 10px 10px;
+  border-radius: 7px 14px 14px 14px;
   transform-origin: bottom;
   transition: all 0.3s ease-in-out;
 }
